@@ -97,7 +97,7 @@ def sun_motion(a, e, M0, t):
     return x, y
 
 
-def sun_position(axis_lat, axis_long, period, a, e, t, M0, no_motion):
+def sun_position(axis_lat, axis_long, period, a, e, t, M0, no_motion, precession_period):
     """
     calculates postion of the Sun in the asteroid-fixed (rotating) reference frame
     
@@ -116,6 +116,7 @@ def sun_position(axis_lat, axis_long, period, a, e, t, M0, no_motion):
         solar irradiance: total irradiance corresponding to sun_distance (W/m2)
     """
     
+    
     # instantenous coordinates of the Sun in asteroid-centred inertial reference frame (xOy is orbital plane, x-axis toward pericenter)
     if no_motion == 1: # no motion along the orbit
         x, y = sun_motion(a, e, M0, 0)
@@ -130,6 +131,8 @@ def sun_position(axis_lat, axis_long, period, a, e, t, M0, no_motion):
     
     [xt, yt, zt] = np.cross(nn, np.array([x/r, y/r, 0])) # unit vector toward the Sun
         
+    if precession_period is not np.inf:
+        axis_long -= 2*np.pi * t / precession_period
     
     # 1. we rotate about z axis for angle axis_long
     R1 = np.array([[np.cos(axis_long), -np.sin(axis_long), 0],
@@ -166,7 +169,7 @@ def sun_position(axis_lat, axis_long, period, a, e, t, M0, no_motion):
     solar_irradiance = 1361./rs**2 # total solar irradiance at distance rs
 
     return([x3, y3, z3], [x3t, y3t, z3t], rs, solar_irradiance)
-
+    
 
 def layers(D, x1, N):
     
@@ -533,7 +536,7 @@ def prismatic_mesh(a, b, c, facet_size, layers):
 
 def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of the asteroid
                               rho, k, albedo, cp, eps,  # physical characteristics
-                              axis_lat, axis_long, rotation_period,  # rotation state
+                              axis_lat, axis_long, rotation_period, precession_period,  # rotation state
                               semi_major_axis, eccentricity,  # orbital elements
                               facet_size, number_of_thermal_wave_depths, first_layer_depth, number_of_layers, time_step_factor): # numerical grid parameters
 
@@ -613,7 +616,8 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
                                                                       e = eccentricity, 
                                                                       t = total_time, 
                                                                       M0 = np.pi, # starting from aphelion 
-                                                                      no_motion = 0) # not needed for isolated seasonal effect
+                                                                      no_motion = 0, # not needed for isolated seasonal effect
+                                                                      precession_period = precession_period) 
    
         # temperature difference relative to neighboring cells
         delta_T = T[neighbor_cells] - T[:, None] 
@@ -668,14 +672,19 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
             hours, remainder = divmod(int(round(estimated_time)), 3600)
             minutes, seconds = divmod(remainder, 60)
             formatted_time = '{:02}:{:02}:{:02}'.format(hours, minutes, seconds)
-            print('Estimated execution time is {}'.format(formatted_time))
+#            print('Estimated execution time is {}'.format(formatted_time))
+            
+            
+            print('{}, {}, {}, {}, {}, {}'.format(facet_size, number_of_thermal_wave_depths, np.round(first_layer_depth/ls, 2), number_of_layers, time_step_factor, formatted_time))
+        
+        
 
     return total_drift/total_number_of_iterations
 
 
 def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of the asteroid
                              rho, k, albedo, cp, eps, # physical characteristics
-                             axis_lat, axis_long, rotation_period, # rotation state
+                             axis_lat, axis_long, rotation_period, precession_period, # rotation state
                              semi_major_axis, eccentricity, number_of_locations, # orbit
                              facet_size, number_of_thermal_wave_depths, first_layer_depth, number_of_layers, time_step_factor, # numerical grid parameters
                              max_tol, min_tol, mean_tol, amplitude_tol, maximum_number_of_rotations): # convergence parameters
@@ -722,7 +731,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     
     # A different convergence criterion is used for spherical asteroid
     sphere = 0 # Flag indicating whether the asteroid is a perfect sphere
-    if semi_axis_a == semi_axis_b and semi_axis_a == semi_axis_c:
+    if semi_axis_a == semi_axis_b and semi_axis_a == semi_axis_c and precession_period is np.inf:
         sphere = 1
     
     # Array to store Yarkovsky drift values at all orbital positions (the first and last element correspond to perihelion, so we calculate only one)
@@ -733,7 +742,9 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
 
     for location in range(number_of_locations):
         
-        print('Location no. {} out of {}'.format(location, number_of_locations))
+        print('{}, {}, {}, {}, {}, Location no. {} out of {}'.format(facet_size, number_of_thermal_wave_depths, np.round(first_layer_depth/ls, 2), number_of_layers, time_step_factor, location + 1, number_of_locations))
+        
+        
         
         # Mean anomaly at the current position in the orbit
         M = M_for_location[location]
@@ -758,8 +769,8 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
                                                                           e = eccentricity, 
                                                                           t = total_time, 
                                                                           M0 = M, 
-                                                                          no_motion = 1) # The effect is calculated at a defined position in the orbit, assuming the asteroid remains stationary relative to the Sun at those points
-       
+                                                                          no_motion = 1, # not needed for isolated seasonal effect
+                                                                          precession_period = precession_period) 
             # temperature difference relative to neighboring cells
             delta_T = T[neighbor_cells] - T[:, None] 
             
@@ -847,14 +858,14 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     drift_for_location[-1] = drift_for_location[0]
     # Mean value of the Yerkovsky effect with respect to time for the entire orbit
     total_effect = np.trapz(drift_for_location, M_for_location)/(2*np.pi)
-
-    return M_for_location, drift_for_location, total_effect
+    
+    return total_effect
 
 
 
 def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of the asteroid
                              rho, k, albedo, cp, eps, # physical characteristics
-                             axis_lat, axis_long, rotation_period, # rotation state
+                             axis_lat, axis_long, rotation_period, precession_period, # rotation state
                              semi_major_axis, eccentricity, number_of_locations, # orbit
                              facet_size, number_of_thermal_wave_depths, first_layer_depth, number_of_layers, time_step_factor, # numerical grid parameters
                              max_tol, min_tol, mean_tol, amplitude_tol, maximum_number_of_rotations): # convergence parameters
@@ -914,7 +925,7 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     
     # A different convergence criterion is used for spherical asteroid
     sphere = 0 # Flag indicating whether the asteroid is a perfect sphere
-    if semi_axis_a == semi_axis_b and semi_axis_a == semi_axis_c:
+    if semi_axis_a == semi_axis_b and semi_axis_a == semi_axis_c and precession_period is np.inf:
         sphere = 1
     
     # Setting initial temepratures of all cells to be equal to T_equilibrium
@@ -940,7 +951,8 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
                                                                       e = eccentricity, 
                                                                       t = total_time, 
                                                                       M0 = np.pi, 
-                                                                      no_motion = initialization) 
+                                                                      no_motion = initialization, # not needed for isolated seasonal effect
+                                                                      precession_period = precession_period)  
         # temperature difference relative to neighboring cells
         delta_T = T[neighbor_cells] - T[:, None] 
         
@@ -1055,7 +1067,8 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
                                                                       e = eccentricity, 
                                                                       t = total_time, 
                                                                       M0 = np.pi, 
-                                                                      no_motion = 0) 
+                                                                      no_motion = 0, # not needed for isolated seasonal effect
+                                                                      precession_period = precession_period)  
         # temperature difference relative to neighboring cells
         delta_T = T[neighbor_cells] - T[:, None] 
         
