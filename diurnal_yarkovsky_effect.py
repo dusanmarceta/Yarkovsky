@@ -5,7 +5,7 @@ from functions import diurnal_yarkovsky_effect
 #                       Physical characteristics
 # =============================================================================
 rho = 1000.  # bulk density (kg/m^3)
-k = 1e-3  # coefficient of thermal conductivity (W/(m*K))
+k = 10  # coefficient of thermal conductivity (W/(m*K))
 eps = 1.  # emissivity of the surface
 cp = 1000.  # Heat capacity at constant pressure (J/kg K)
 albedo = 0.  # Bond albedo
@@ -17,7 +17,7 @@ a3 = 5.  # semi-axis of the ellipsod along the rotation axis (m)
 #                               Rotation
 # =============================================================================
 rotation_period = 360.  # Rotation period (seconds)
-precession_period = 360. # Period of the precession of the spin axis (+ for direct, - for retrograde precession) (seconds)
+precession_period = np.inf # Period of the precession of the spin axis (+ for direct, - for retrograde precession) (seconds)
 axis_lat = np.deg2rad(60.)  #  Latitude of the north pole relative to the orbital plane (rad)
 axis_long = np.deg2rad(0.) # Longitude of the north pole measured from the direction of perihelion (rad)
 # =============================================================================
@@ -25,7 +25,7 @@ axis_long = np.deg2rad(0.) # Longitude of the north pole measured from the direc
 # =============================================================================
 eccentricity = 0.3  # Eccentricity of the orbit
 semi_major_axis = 1.0  # Semimajor axis of the orbit (au)
-number_of_locations = 10  # Number of points along the orbit where the Yarkovsky effect is computed
+number_of_locations = 1  # Number of points along the orbit where the Yarkovsky effect is computed
 
 # =============================================================================
 #                           Numerical grid

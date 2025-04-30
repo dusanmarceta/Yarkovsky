@@ -605,6 +605,8 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
     
     total_drift = 0
     
+    drift_za_plot = []
+    
     while total_time <= orbital_period:
         
         drift[0] = drift[1]
@@ -645,6 +647,8 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
         dadt = 2 * semi_major_axis / mean_motion / sun_distance * np.sqrt(1 - eccentricity**2) * B / mass
         
         drift[1] = dadt
+        
+        
 
         if np.abs(np.nanmax(drift) - np.nanmin(drift)) > 1e2: # divergence due to the large time step
             
@@ -663,7 +667,7 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
             total_time += time_step
             i += 1
             total_drift += dadt
-
+            drift_za_plot.append(dadt)
             
         if np.mod(i, 10000)==0 and i > 0:
             
@@ -679,7 +683,7 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
         
         
 
-    return total_drift/total_number_of_iterations
+    return total_drift/total_number_of_iterations, drift_za_plot, total_time
 
 
 def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of the asteroid
@@ -860,7 +864,6 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     total_effect = np.trapz(drift_for_location, M_for_location)/(2*np.pi)
     
     return total_effect
-
 
 
 def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of the asteroid
