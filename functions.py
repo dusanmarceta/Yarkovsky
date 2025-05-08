@@ -3,6 +3,7 @@ import numpy as np
 from collections import defaultdict
 from constants import G, au, speed_of_light, sigma, S0
 from scipy.optimize import fsolve
+from scipy.interpolate import griddata
 import time
 from datetime import timedelta
 
@@ -708,6 +709,20 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     # generating the mesh
     neighbor_cells, volumes, areas, distances, surface_cells, surface_areas, surface_normals = prismatic_mesh(semi_axis_a, semi_axis_b, semi_axis_c, facet_size, layer_depths)
 
+    
+    # coorcinates of the surface cells
+    lat_surface = np.rad2deg(np.arcsin(np.transpose(surface_normals)[2]))# latitude
+    long_surface = np.rad2deg(np.arctan2(np.transpose(surface_normals)[1], np.transpose(surface_normals)[0])) # longitude
+
+    grid_lon, grid_lat = np.meshgrid(
+    np.linspace(-180, 180, 360),  # 1° razmak
+    np.linspace(min(lat_surface), max(lat_surface), 180)  # 1° razmak
+    )
+    
+
+
+    
+    
     # initial setting for the time step (it will usually be much smaller than this because it depands on the smallest distance between the cells)
     time_step = rotation_period / 24 
     
@@ -730,8 +745,9 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     # mass of the asteorid (kg)
     mass = 4/3 * semi_axis_a * semi_axis_b * semi_axis_c * np.pi * rho
     
-    # Equilibrium temperature assuming a heliocentric distance equal to the semi-major axis
-    T_equilibrium = (S0/semi_major_axis**2/4/sigma)**0.25
+    
+    
+    
     
     # A different convergence criterion is used for spherical asteroid
     sphere = 0 # Flag indicating whether the asteroid is a perfect sphere
@@ -743,8 +759,18 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     
     # Array to store mean anomaly (the first and last element correspond to perihelion)
     M_for_location = np.linspace(0, 2 * np.pi, number_of_locations + 1)
+    
+    T_surface = np.zeros([number_of_locations, 180, 360])
+    T_equator_rotation = np.zeros([number_of_locations, int(number_of_steps_per_rotation)])
+    T_noon = np.zeros([number_of_locations, number_of_layers])
+    T_midnight = np.zeros([number_of_locations, number_of_layers])
+    
+    
+    drift_evolution = []
 
     for location in range(number_of_locations):
+        
+        np.savetxt('progres.txt', [location])
         
         print('{}, {}, {}, {}, {}, Location no. {} out of {}'.format(facet_size, number_of_thermal_wave_depths, np.round(first_layer_depth/ls, 2), number_of_layers, time_step_factor, location + 1, number_of_locations))
         
@@ -753,17 +779,77 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
         # Mean anomaly at the current position in the orbit
         M = M_for_location[location]
         
+        # position of the Sun in asteroid-fixed reference frame
+        r_sun, r_trans, sun_distance, solar_irradiance = sun_position(axis_lat = axis_lat, axis_long = axis_long, 
+                                                                      period = rotation_period, 
+                                                                      a = semi_major_axis, 
+                                                                      e = eccentricity, 
+                                                                      t = 0, 
+                                                                      M0 = M, 
+                                                                      no_motion = 1, # not needed for isolated seasonal effect
+                                                                      precession_period = precession_period)
+        
+        
+        long_midnight = np.mod(np.rad2deg(np.arctan2(r_sun[1], r_sun[0])), 360) + 180
+                
+        long_noon = np.mod(np.rad2deg(np.arctan2(r_sun[1], r_sun[0])), 360)
+        
+        if long_midnight > 180:
+            long_midnight = long_midnight - 360
+        elif long_midnight < -180:
+            long_midnight = long_midnight + 360
+            
+        if long_noon > 180:
+            long_noon = long_noon - 360
+        elif long_noon < -180:
+            long_noon = long_noon + 360
+    
+    
+    
+        dist_midnight = np.sqrt((long_surface - long_midnight)**2 + (lat_surface - 0)**2)
+        idx_midnight = np.argmin(dist_midnight)
+        
+        dist_noon = np.sqrt((long_surface - long_noon)**2 + (lat_surface - 0)**2)
+        idx_noon = np.argmin(dist_noon)
+        
+        idx_noon_depth = np.arange(idx_noon, number_of_layers * len(surface_areas) + idx_noon, len(surface_areas))
+        idx_midnight_depth = np.arange(idx_midnight, number_of_layers * len(surface_areas) + idx_midnight, len(surface_areas))
+
+
+        
+        long_surface_location = long_surface - np.mod(np.rad2deg(np.arctan2(r_sun[1], r_sun[0])), 360)
+        
+        long_surface_location = ((long_surface_location + 180) % 360) - 180
+        
+        
+        long_extended = np.concatenate([
+        long_surface_location - 360,
+        long_surface_location,
+        long_surface_location + 360
+        ])
+    
+    
+        lat_extended = np.tile(lat_surface, 3)
+        
+        # Equilibrium temperature assuming a heliocentric distance equal to the semi-major axis
+        T_equilibrium = (S0/sun_distance**2/4/sigma)**0.25
+            
         # Setting initial temepratures of all cells to be equal to T_equilibrium
         T = np.zeros(len(volumes)) + T_equilibrium # temperature svih celija
         
         # List for storing Yarkovsky drift values
         drift = []
+        T_equator_rotation_location = []
+#        T_equatorial_midnight = []
         
         # total time
         total_time = 0.
         
         # iteration counter
         i=0
+        
+        long_midnight = 180
+        long_noon = 0
         while True:
             
             # position of the Sun in asteroid-fixed reference frame
@@ -775,6 +861,36 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
                                                                           M0 = M, 
                                                                           no_motion = 1, # not needed for isolated seasonal effect
                                                                           precession_period = precession_period) 
+#            if total_time == 0:
+#                long_midnight = np.mod(np.rad2deg(np.arctan2(r_sun[1], r_sun[0])), 360) + 180
+#                
+#                long_noon = np.mod(np.rad2deg(np.arctan2(r_sun[1], r_sun[0])), 360)
+#                
+#                if long_midnight > 180:
+#                    long_midnight = long_midnight - 360
+#                elif long_midnight < -180:
+#                    long_midnight = long_midnight + 360
+#                    
+#                if long_noon > 180:
+#                    long_noon = long_noon - 360
+#                elif long_noon < -180:
+#                    long_noon = long_noon + 360
+#            
+#            
+#            
+#                dist_midnight = np.sqrt((long_surface - long_midnight)**2 + (lat_surface - 0)**2)
+#                idx_midnight = np.argmin(dist_midnight)
+#                
+#                dist_noon = np.sqrt((long_surface - long_noon)**2 + (lat_surface - 0)**2)
+#                idx_noon = np.argmin(dist_noon)
+#                
+#                idx_noon_depth = np.arange(idx_noon, number_of_layers * len(surface_areas) + idx_noon, len(surface_areas))
+#                idx_midnight_depth = np.arange(idx_midnight, number_of_layers * len(surface_areas) + idx_midnight, len(surface_areas))
+#            
+            
+
+            
+
             # temperature difference relative to neighboring cells
             delta_T = T[neighbor_cells] - T[:, None] 
             
@@ -800,7 +916,11 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
             # Semi-major axis drift
             dadt = 2 * semi_major_axis / mean_motion / sun_distance * np.sqrt(1 - eccentricity**2) * B / mass
             
+            
             drift.append(dadt)
+            
+            T_equator_rotation_location.append(T[surface_cells][idx_midnight])
+#            T_equatorial_noon.append(T[surface_cells][idx_midnight])
             
 
             if np.abs(np.nanmax(drift) - np.nanmin(drift)) > 1e2: # divergence due to the large time step
@@ -819,6 +939,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     
             # Checking for convergence
             if np.mod(i, number_of_steps_per_rotation ) == 0 and i >= 2*number_of_steps_per_rotation: # Full rotation completed (starting from the second rotation)
+                
                 
                 # number of full rotations
                 number_of_rotations = i / number_of_steps_per_rotation 
@@ -847,23 +968,42 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
                 if diff_max < max_tol and diff_min < min_tol and diff_mean < mean_tol and amplitude < amplitude_tol and sphere == 1: # for a spherical asteroid
                     # Storing the mean drift value from the final rotation
                     drift_for_location[location] = np.mean(drift_2)
+
                     break # next position in the orbit
         
                 elif diff_max < max_tol and diff_min < min_tol and diff_mean < mean_tol and sphere == 0: # for a ellipsoidal asteroid
                     # Storing the mean drift value from the final rotation
                     drift_for_location[location] = np.mean(drift_2)
+
                     break # next position in the orbit
                     
                 elif number_of_rotations >= maximum_number_of_rotations: # to prevent too long simulation
                     drift_for_location[location] = np.mean(drift_2)
+
                     break # next position in the orbit
+        
+        T_extended = np.tile(T[surface_cells], 3)
+        T_surface[location] = griddata((long_extended, lat_extended), T_extended, (grid_lon, grid_lat), method='cubic')
+
+        
+        
+        
+        
+        drift_evolution.append(drift)
+        
+                    
+        T_equator_rotation[location] = T_equator_rotation_location[-int(number_of_steps_per_rotation):]
+        T_noon[location] = T[idx_noon_depth]
+        T_midnight[location] = T[idx_midnight_depth]
      
     # the last vvalue also corresponds to perihelion so we do not need to calculate it again
     drift_for_location[-1] = drift_for_location[0]
+        
     # Mean value of the Yerkovsky effect with respect to time for the entire orbit
     total_effect = np.trapz(drift_for_location, M_for_location)/(2*np.pi)
     
-    return total_effect
+
+    return total_effect, drift_evolution, drift_for_location, M_for_location, T_equator_rotation, T_noon, T_midnight, layer_depths,  grid_lon, grid_lat, T_surface
 
 
 def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of the asteroid
