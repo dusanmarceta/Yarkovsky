@@ -539,7 +539,8 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
                               rho, k, albedo, cp, eps,  # physical characteristics
                               axis_lat, axis_long, rotation_period, precession_period,  # rotation state
                               semi_major_axis, eccentricity,  # orbital elements
-                              facet_size, number_of_thermal_wave_depths, first_layer_depth, number_of_layers, time_step_factor): # numerical grid parameters
+                              facet_size, number_of_thermal_wave_depths, first_layer_depth, number_of_layers, time_step_factor,  # numerical grid parameters
+                              progress_file): # file where the estimated remaining calculation time is written periodically
 
 
 
@@ -559,10 +560,10 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
     total_depth  = np.min([0.8 * semi_axis_a, 0.8 * semi_axis_b, 0.8 * semi_axis_c, total_depth])
     
     # depth of the first layer
-    first_layer_depth = ls * first_layer_depth
+    first_layer_depth_abs = np.min([ls, total_depth/number_of_thermal_wave_depths]) * first_layer_depth
     
     # depths of all layers
-    layer_depths  = layers(total_depth, first_layer_depth, number_of_layers)
+    layer_depths  = layers(total_depth, first_layer_depth_abs, number_of_layers)
     
 
     # generating the mesh
@@ -670,7 +671,7 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
             total_drift += dadt
             drift_za_plot.append(dadt)
             
-        if np.mod(i, 10000)==0 and i > 0:
+        if np.mod(i, 100)==0 and i > 0:
             
             per_iteration = (time.time() - time_1)/i
             estimated_time = (total_number_of_iterations - i) * per_iteration
@@ -680,8 +681,9 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
 #            print('Estimated execution time is {}'.format(formatted_time))
             
             
-            print('{}, {}, {}, {}, {}, {}'.format(facet_size, number_of_thermal_wave_depths, np.round(first_layer_depth/ls, 2), number_of_layers, time_step_factor, formatted_time))
-        
+#            print('{}, {}, {}, {}, {}, {}'.format(facet_size, number_of_thermal_wave_depths, np.round(first_layer_depth/ls, 2), number_of_layers, time_step_factor, formatted_time))
+            zapis = 'facet_size = {} m\nnumber of thermal wave depths = {}\nfirst layer depth = {} m\nnumber of layers = {}\ntime step factor = {}\nestimated calculation time remaining = {}'.format(np.round(facet_size, 3), number_of_thermal_wave_depths, np.round(first_layer_depth_abs, 3), number_of_layers, time_step_factor, formatted_time)
+            np.savetxt(progress_file, [zapis], fmt='%s')
         
 
     return total_drift/total_number_of_iterations, drift_za_plot, total_time
@@ -715,9 +717,11 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     long_surface = np.rad2deg(np.arctan2(np.transpose(surface_normals)[1], np.transpose(surface_normals)[0])) # longitude
 
     grid_lon, grid_lat = np.meshgrid(
-    np.linspace(-180, 180, 360),  # 1° razmak
-    np.linspace(min(lat_surface), max(lat_surface), 180)  # 1° razmak
+    np.linspace(-180, 180, 3600),  # 1° razmak
+    np.linspace(min(lat_surface), max(lat_surface), 1800)  # 0.1° razmak
     )
+    
+    
     
 
 
@@ -760,7 +764,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     # Array to store mean anomaly (the first and last element correspond to perihelion)
     M_for_location = np.linspace(0, 2 * np.pi, number_of_locations + 1)
     
-    T_surface = np.zeros([number_of_locations, 180, 360])
+    T_surface = np.zeros([number_of_locations, 1800, 3600])
     T_equator_rotation = np.zeros([number_of_locations, int(number_of_steps_per_rotation)])
     T_noon = np.zeros([number_of_locations, number_of_layers])
     T_midnight = np.zeros([number_of_locations, number_of_layers])
@@ -985,7 +989,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
         T_extended = np.tile(T[surface_cells], 3)
         T_surface[location] = griddata((long_extended, lat_extended), T_extended, (grid_lon, grid_lat), method='cubic')
 
-        
+#        grid_lat_full = np.concatenate([[-90], grid_lat, [90]])
         
         
         
