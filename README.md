@@ -36,6 +36,12 @@ python3 diurnal_yarkovsky_effect.py -input input_parameters.py -yarko drift.txt
 |               |          | &nbsp;&nbsp;&nbsp;&nbsp;• `latitude`                                        |
 |               |          | &nbsp;&nbsp;&nbsp;&nbsp;• `layer_depths`                                    |
 
+
+An example input parameter file (input_parameters.py) is provided with the project.
+This file defines the physical, thermal, and orbital properties required for the simulation.
+
+You should edit this example file to set your own parameters as needed.
+While you can freely modify the parameter values, the overall structure and format of the file must be preserved to ensure correct parsing by the script.
 ---
 
 ### 📝 Notes
