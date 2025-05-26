@@ -1,77 +1,62 @@
+import argparse
 import numpy as np
+import importlib.util
 from functions import diurnal_yarkovsky_effect
-import matplotlib.pyplot as plt
 
-# =============================================================================
-#                       Physical characteristics
-# =============================================================================
-rho = 1000.  # bulk density (kg/m^3)
-k = 1e-3  # coefficient of thermal conductivity (W/(m*K))
-eps = 1.  # emissivity of the surface
-cp = 1000.  # Heat capacity at constant pressure (J/kg K)
-albedo = 0.  # Bond albedo
-a1 = 1.  # semi-axis of the ellipsod in equatorial plane (m)
-a2 = 1.  # semi-axis of the ellipsod in equatorial plane (m)
-a3 = 1.  # semi-axis of the ellipsod along the rotation axis (m)
+# -----------------------------
+# Argument parser setup
+# -----------------------------
+parser = argparse.ArgumentParser(description="Compute Yarkovsky effect.")
+parser.add_argument('-input', type=str, required=True, help='Input parameter file (Python file)')
+parser.add_argument('-temp', type=str, default='temperature_field.npz', help='Output filename for surface temperature')
+parser.add_argument('-yarko', type=str, default='drift_along_orbit.txt', help='Output filename for orbit drift data')
+parser.add_argument('-grid', type=str, default='grid.npz', help='Output filename for hour angle/latitude grid')
+parser.add_argument('-progress', type=str, default='progress.log', help='Output filename for simulation progress log')
+args = parser.parse_args()
 
-# =============================================================================
-#                               Rotation
-# =============================================================================
-rotation_period = 360.  # Rotation period (seconds)
-precession_period = np.inf # Period of the precession of the spin axis (+ for direct, - for retrograde precession) (seconds)
-axis_lat = np.deg2rad(90.)  #  Latitude of the north pole relative to the orbital plane (rad)
-axis_long = np.deg2rad(0.) # Longitude of the north pole measured from the direction of perihelion (rad)
-# =============================================================================
-#                                Orbit
-# =============================================================================
-eccentricity = 0.3  # Eccentricity of the orbit
-semi_major_axis = 1.0  # Semimajor axis of the orbit (au)
-number_of_locations = 4  # Number of points along the orbit where the Yarkovsky effect is computed
+# -----------------------------
+# Load input .py file as module
+# -----------------------------
+spec = importlib.util.spec_from_file_location("input_params", args.input)
+params = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(params)
 
-# =============================================================================
-#                           Numerical grid
-# =============================================================================
-facet_size = 0.05  #  Average height of the triangular surface elements (m)
-number_of_thermal_wave_depths = 2  #  Total depth of the grid, measured as the number of depths of a diurnal thermal wave
-first_layer_depth = 0.1  # Depth of the first layer below the surface, expressed as a fraction of the diurnal thermal wave depth
-number_of_layers = 10  #  Number of layers of the numerical grid
-time_step_factor = 3  # Critical time step scaling factor
-
-# =============================================================================
-#                           Convergence criteria
-# =============================================================================
-max_tol = 5e-2  # Required relative difference between the maxima of two successive rotations
-min_tol = 5e-2  # Required relative difference between the minima of two successive rotations
-mean_tol = 5e-2  # Required relative difference between the means of two successive rotations
-amplitude_tol = 5e-2  # Required relative amplitude (total relative variation over one full rotation)
-maximum_number_of_rotations = 3  # Maximum allowed number of full rotations.
-
-
-
-# =============================================================================
-#                               Calculation
-# =============================================================================
-total_effect, drift_evolution, drift_for_location, M_for_location, T_equator_rotation, T_noon, T_midnight, layer_depths,  grid_lon, grid_lat, T_surface = diurnal_yarkovsky_effect(a1, a2, a3, # shape of the asteroid
-                             rho, k, albedo, cp, eps, # physical characteristics
-                             axis_lat, axis_long, rotation_period, precession_period, # rotation state
-                             semi_major_axis, eccentricity, number_of_locations, # orbital elements
-                             facet_size, number_of_thermal_wave_depths, first_layer_depth, number_of_layers, time_step_factor, # numerical grid parameters
-                             max_tol, min_tol, mean_tol, amplitude_tol, maximum_number_of_rotations) # convergence parameters
-
-
-
-
-np.save('T_surface.npy', T_surface)
-np.savez('lon-lat.npz', longitude = grid_lon, latitude = grid_lat)
-
-
-np.savetxt(
-    'drift_along_orbit.txt',
-    np.column_stack([M_for_location, drift_for_location]),
-    header='Mean_Anomaly(rad) Drift(m/s)',
-    comments=''  # removes "#" in fron to header
+# -----------------------------
+# Prepare input values
+# -----------------------------
+p = params
+total_effect, drift_for_location, M_for_location, layer_depths, grid_ha, grid_lat, T_asteroid = diurnal_yarkovsky_effect(
+    p.a1, p.a2, p.a3,
+    p.rho, p.k, p.albedo, p.cp, p.eps,
+    p.axis_lat, p.axis_long, p.rotation_period, p.precession_period,
+    p.semi_major_axis, p.eccentricity, p.number_of_locations,
+    p.facet_size, p.number_of_thermal_wave_depths, p.first_layer_depth, p.number_of_layers, p.time_step_factor,
+    p.max_tol, p.min_tol, p.mean_tol, p.amplitude_tol, p.maximum_number_of_rotations, args.progress
 )
 
+# -----------------------------
+# Save outputs
+# -----------------------------
 
-longitude = np.load('lon-lat.npz')['longitude']
-latitude = np.load('lon-lat.npz')['latitude']
+if args.yarko:
+    np.savetxt(
+        args.yarko,
+        np.column_stack([M_for_location, drift_for_location]),
+        header='Mean_Anomaly(rad) Drift(m/s)',
+        comments=''
+    )
+    
+    # Dopiši total drift kao komentar na kraju
+    with open(args.yarko, 'a') as f:
+        f.write(f'\n# Total Yarkovsky drift (m/s): {total_effect:.8e}\n')
+
+if args.grid:
+    np.savez(
+        args.grid, 
+        hour_angle=grid_ha, 
+        latitude=grid_lat, 
+        layer_depths=layer_depths
+    )
+
+if args.temp:
+    np.save(args.temp, T_asteroid)
