@@ -16,11 +16,11 @@ Note: The temperature map is limited to the latitude range defined in the ha_lat
 
 #---------------------------- Input data --------------------------------------
 location = 0
-depth_0 = 4.5e-03
+depth_0 = 0
 number_of_contours = 100
 
-temperature_file = 'temperature.npy'
-grid_file = 'grid.npz'
+temperature_file = 'temp_validation_01.npy'
+grid_file = 'grid_validation.npz'
 
 # -----------------------------------------------------------------------------
 
@@ -41,16 +41,23 @@ if depth_0 > np.max(depths):
         )
     )
 
-temperature = temperature[location]
 depth_index = np.argmin(np.abs(depths - depth_0))
+temperature_numerical = temperature[location][depth_index]
 
 
 
-contour = plt.contourf(ha/15, lats, temperature[depth_index], number_of_contours, cmap='jet')
+max_idx = np.unravel_index(np.nanargmax(temperature_numerical), temperature_numerical.shape)
+lon_max_temp = ha[max_idx]
+lat_max_temp = lats[max_idx]
+temp_max = temperature_numerical[max_idx]
+
+
+plt.figure()
+contour = plt.contourf(ha/15, lats, temperature_numerical, number_of_contours, cmap='jet')
 plt.xlabel('hour angle (h)', fontsize=24)
 plt.ylabel('latitude (deg)', fontsize=24)
-plt.title(f'Temperature map at depth of {np.round(depths[depth_index], 6)} m', fontsize=20)
-plt.xticks(np.arange(-12, 15, 3), fontsize=20)
+#plt.title(f'Temperature map at depth of {np.round(depths[depth_index], 6)} m', fontsize=20)
+#plt.xticks(np.arange(-12, 15, 3), fontsize=20)
 plt.yticks(fontsize=20)
 
 # Colorbar

@@ -8,15 +8,20 @@ from constants import au, y2s
 
 
 
-rho = 1000 # bulk density (kg/m^3)
-k = 1e-3 # coefficient of thermal conductivity (W/(m*K))
+rho = 2490 # bulk density (kg/m^3)
+k = 1e-4 # coefficient of thermal conductivity (W/(m*K))
 epsi = 1. # emissivity of the surface
 cp = 1000. # Heat capacity at constant pressure (J/kg K)
 albedo = 0.  # Bond albedo
-semi_major_axis = 1. # au
-eccentricity = 0.3
-R = 1. # asteroid radius (m)
-rotation_period = 360. # seconds
+#semi_major_axis = 2.06282123907 # au
+#eccentricity = 0.52018004318
+
+semi_major_axis = 1 # au
+eccentricity = 0.0
+
+
+R = 7. # asteroid radius (m)
+rotation_period = 34. # seconds
 gamma = 0.
 
 

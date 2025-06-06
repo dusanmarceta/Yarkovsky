@@ -5,3 +5,8 @@ seasonal_test.sh
 Results/
 probe/
 seasonal/
+validation/
+*.txt
+*.npy
+*.npz
+*.log

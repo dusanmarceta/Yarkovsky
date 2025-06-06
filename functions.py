@@ -298,7 +298,7 @@ def find_matching_rows(arr, pair_dict):
     return(match)
 
 
-def prismatic_mesh(a, b, c, facet_size, layers):
+def prismatic_mesh(a, b, c, facet_size, layers, lateral_heat_conduction = 1):
     '''
     The ellipsoid is devided into layers with depths bellow surface defined by array layers.
     Every layer is meshed with triangular prism. The height of triangula bases is defined by facet_size.
@@ -435,6 +435,8 @@ def prismatic_mesh(a, b, c, facet_size, layers):
             base_up = euclid_distance(points[i][common_points[0]], points[i][common_points[1]])
             base_down = euclid_distance(points[i+1][common_points[0]], points[i+1][common_points[1]])
             
+            
+            
             if i==0:
                 area_2 = (base_up + base_down) * layers[i]/2
             else:
@@ -460,8 +462,11 @@ def prismatic_mesh(a, b, c, facet_size, layers):
             # lower
             areas[br][4] = facets_area[i+1][j]
             
-            # in the level
-            areas[br][1], areas[br][2], areas[br][3] = area_1, area_2, area_3
+            if lateral_heat_conduction == 1:
+                # in the level
+                areas[br][1], areas[br][2], areas[br][3] = area_1, area_2, area_3
+            else:
+                areas[br][1], areas[br][2], areas[br][3] = 0, 0, 0
             
     # =============================================================================
     # Distances
@@ -695,7 +700,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
                              semi_major_axis, eccentricity, number_of_locations, # orbit
                              facet_size, number_of_thermal_wave_depths, first_layer_depth, number_of_layers, time_step_factor, # numerical grid parameters
                              max_tol, min_tol, mean_tol, amplitude_tol, maximum_number_of_rotations, # convergence parameters
-                             progress_file): 
+                             progress_file, lateral_heat_conduction = 1): 
 
     # Depth of the diurnal thermal wave penetration
     ls = np.sqrt(k*rotation_period/rho/cp/(2*np.pi))
@@ -760,11 +765,6 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     drift_evolution = []
 
     for location in range(number_of_locations):
-        
-        np.savetxt(progress_file, [location])
-        
-        zapis = 'location = {} out of {}\nfacet_size = {} m\nnumber of thermal wave depths = {}\nfirst layer depth = {} m\nnumber of layers = {}\ntime step factor = {}'.format(location + 1, number_of_locations, np.round(facet_size, 6), number_of_thermal_wave_depths, np.round(first_layer_depth, 3), number_of_layers, time_step_factor)
-        np.savetxt(progress_file, [zapis], fmt='%s')
         
         # Mean anomaly at the current position in the orbit
         M = M_for_location[location]
@@ -870,6 +870,15 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
                 
                 # number of full rotations
                 number_of_rotations = i / number_of_steps_per_rotation 
+                
+                
+                zapis = 'location = {} out of {}\nrotation = {} out of {}\nfacet_size = {} m\nnumber of thermal wave depths = {}\nfirst layer depth = {} m\nnumber of layers = {}\ntime step factor = {}'.format(location + 1, number_of_locations, 
+                                    int(number_of_rotations), maximum_number_of_rotations,
+                                    np.round(facet_size, 6), number_of_thermal_wave_depths, 
+                                    np.round(first_layer_depth, 3), number_of_layers, time_step_factor)
+                
+                np.savetxt(progress_file, [zapis], fmt='%s')
+        
                 
                 drift_1 = drift[-int(2*number_of_steps_per_rotation):-int(number_of_steps_per_rotation)] # Drift values from the rotation preceding the last one
                 drift_2 = drift[-int(number_of_steps_per_rotation):] # Drift values from the last rotation
