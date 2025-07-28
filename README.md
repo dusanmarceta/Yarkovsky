@@ -1,3 +1,9 @@
+## 🌞 Numerical Thermophysical Asteroid Model
+
+This model enables the calculation of the isolated diurnal and seasonal components of the Yarkovsky effect.
+It also provides the asteroid’s temperature field, as well as the evolution of the Yarkovsky drift over both the
+rotation and orbital periods.
+
 ## 🌞 Diurnal Yarkovsky Effect
 
 ### 📄 Description
