@@ -73,6 +73,7 @@ Unlike the case of a spherical asteroid rotating around a fixed spin axis, where
 
 
 ![Image](https://github.com/user-attachments/assets/6f8c2aa1-b5d1-4e1f-b322-ff62905ba980)
+
 *Figure 2: Convergence of the Yarkovsky effect calculation for a non-spherical or precessing spherical asteroid.*
 
 
