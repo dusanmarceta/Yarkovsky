@@ -53,10 +53,10 @@ While you can freely modify the parameter values, the overall structure and form
 
 ### ⚙️ Convergence Criteria
 
-Convergence of the Yarkovsky effect calculation for a spherical asteroid is illustrated in Figure 1. The user can control the convergence through parameters specified in the input file, which are described in the table below.
+Convergence of the Yarkovsky effect calculation for a spherical asteroid is illustrated in Figure 1. The user can control the convergence through parameters specified in the input file, which are described in the table below. If some of the parameters are not relevant to the user, they can simply be set to a very large value.
 
 
-![Description of the image](https://github.com/user-attachments/assets/c635e055-e478-4d70-82f6-18d9541e0f4a)
+![Image](https://github.com/user-attachments/assets/c635e055-e478-4d70-82f6-18d9541e0f4a)
 
 *Figure 1: Convergence of the Yarkovsky effect calculation for a spherical asteroid rotating around a fixed spin axis.*
 
@@ -67,6 +67,18 @@ Convergence of the Yarkovsky effect calculation for a spherical asteroid is illu
 | `min_tol`         | Required relative difference between the minima of two successive rotations (min_1 and min_2)|
 | `mean_tol`        | Required relative difference between the means of two successive rotations (mean values of the rotations marked in blue and red)|
 | `amplitude_tol`   | Required maximum relative amplitude (total relative variation over one full rotation)|
+
+
+Unlike the case of a spherical asteroid rotating around a fixed spin axis, where the Yarkovsky effect remains constant throughout the rotation, this is not the case for a non-spherical asteroid or a spherical asteroid rotating around a precessing axis. In these cases, the Yarkovsky effect varies over a single rotation period, as illustrated in Figure 2. 
+
+
+![Image](https://github.com/user-attachments/assets/6f8c2aa1-b5d1-4e1f-b322-ff62905ba980)
+*Figure 2: Convergence of the Yarkovsky effect calculation for a non-spherical or precessing spherical asteroid.*
+
+
+Consequently, it does not make sense to require convergence of the `amplitude_tol` parameter, since it depends on the asteroid's shape and rotational state. Here, the convergence process is controlled solely by the first three parameters from the previous table.
+
+In addition to the parameters mentioned above, the user can also specify the maximum number of asteroid rotation periods after which the calculation will terminate, regardless of whether the specified convergence criteria have been met, using the `maximum_number_of_rotations` parameter.
 
 ---
 
