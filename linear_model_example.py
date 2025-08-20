@@ -8,11 +8,11 @@ from constants import au, y2s
 
 
 
-rho = 2490 # bulk density (kg/m^3)
-k = 1e-4 # coefficient of thermal conductivity (W/(m*K))
-epsi = 1. # emissivity of the surface
-cp = 1000. # Heat capacity at constant pressure (J/kg K)
-albedo = 0.  # Bond albedo
+rho = 2000 # bulk density (kg/m^3)
+k = 10 # coefficient of thermal conductivity (W/(m*K))
+epsi = 0.95 # emissivity of the surface
+cp = 800. # Heat capacity at constant pressure (J/kg K)
+albedo = 0.1  # Bond albedo
 #semi_major_axis = 2.06282123907 # au
 #eccentricity = 0.52018004318
 
@@ -20,9 +20,9 @@ semi_major_axis = 1 # au
 eccentricity = 0.0
 
 
-R = 7. # asteroid radius (m)
-rotation_period = 34. # seconds
-gamma = 0.
+R = 50 # asteroid radius (m)
+rotation_period = 24 * 3600 # seconds
+gamma = 90
 
 
 drift_diurnal = yarko_diurnal_circular(rho, k, cp, R, semi_major_axis, gamma, rotation_period/ 3600, 1-albedo, epsi)
@@ -38,7 +38,7 @@ print('\n======= Yarkovsky diurnal (circular) =======')
 print('\n{} m/s, \n\n{} km/god, \n\n{} au/my\n'.format(np.round(drift_diurnal, 6), np.round(drift_diurnal * y2s /1000, 6), np.round(drift_diurnal * y2s / au * 1e6, 6)))
 
 print('======= Yarkovsky seasonal (circular) =======')
-print('\n{} m/s, \n\n{} km/god, \n\n{} au/my\n'.format(np.round(drift_seasonal, 6), np.round(drift_seasonal * y2s /1000, 6), np.round(drift_seasonal * y2s / au * 1e6, 6)))
+print('\n{} m/s, \n\n{} km/god, \n\n{} au/my\n'.format(np.round(drift_seasonal, 10), np.round(drift_seasonal * y2s /1000, 6), np.round(drift_seasonal * y2s / au * 1e6, 6)))
 
 
 print('======= Yarkovsky eccentric =======')

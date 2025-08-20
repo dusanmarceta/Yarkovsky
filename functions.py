@@ -207,6 +207,39 @@ def layers(D, x1, N):
 
 
 
+def layers_from_x1_xN(D, x1, xN):
+    # Funkcija koja vraća grešku u ukupnoj dužini D za dati N
+    def error(N_float):
+        N = int(np.round(N_float))
+        if N < 2:
+            return 1e6  # penalizuj niske vrednosti
+        r = (xN / x1) ** (1 / (N - 1))
+        total = x1 * (r ** N - 1) / (r - 1)
+        return total - D
+
+    # Početna pretpostavka za N
+    N_guess = 10
+
+    # Nađi N koje daje zbir segmenata jednak D
+    N_solution = fsolve(error, N_guess)[0]
+    N = int(np.round(N_solution))
+
+    # Sada znamo N, možemo da nađemo r
+    r = (xN / x1) ** (1 / (N - 1))
+
+    # Generiši korake
+    steps = x1 * r ** np.arange(N)
+
+    # Normalizuj da suma bude tačno D
+    steps *= D / np.sum(steps)
+
+    # Kreiraj tačke podele
+    points = np.concatenate(([0], np.cumsum(steps)))
+
+    return points[1:], N
+
+
+
 
 def ellipsoid_area(a, b, c):
     '''
@@ -462,12 +495,11 @@ def prismatic_mesh(a, b, c, facet_size, layers, lateral_heat_conduction = 1):
             # lower
             areas[br][4] = facets_area[i+1][j]
             
-            if lateral_heat_conduction == 1:
-                # in the level
-                areas[br][1], areas[br][2], areas[br][3] = area_1, area_2, area_3
-            else:
-                areas[br][1], areas[br][2], areas[br][3] = 0, 0, 0
             
+            # in the level
+            areas[br][1], areas[br][2], areas[br][3] = area_1, area_2, area_3
+
+
     # =============================================================================
     # Distances
     # =============================================================================
@@ -515,11 +547,11 @@ def prismatic_mesh(a, b, c, facet_size, layers, lateral_heat_conduction = 1):
                  
             # below
             if i == len(layers)-1: # the deepest layer
-                distances[br][4] = np.inf
+                distances[br][4] = np.inf # adiabatic boundary condition
             else:
                 distances[br][4] = (thickness[i] + thickness[i+1])/2
                 
-    distances[-1] = np.array([np.inf, np.inf, np.inf, np.inf, np.inf]) # fictuous cell
+    distances[-1] = np.array([np.inf, np.inf, np.inf, np.inf, np.inf]) # fictuous cell (# adiabatic boundary condition)
         
     # =============================================================================
     # Cell volumes (works !!!)
@@ -537,6 +569,12 @@ def prismatic_mesh(a, b, c, facet_size, layers, lateral_heat_conduction = 1):
             volumes[i] = frustum_volume(base_1, base_2, layers[level] - layers[level-1])
         
     volumes[-1] = np.inf # fictuous cell
+    
+    if lateral_heat_conduction == 0:
+        areas = areas[:, [0, -1]]
+        distances = distances[:, [0, -1]]
+        areas = areas[:, [0, -1]]
+        neighbor_cells = [[row[0], row[-1]] for row in neighbor_cells]
             
     return (neighbor_cells, volumes, areas, distances, np.arange(len(facets)), facets_area[0], surface_normals)
 
@@ -545,7 +583,9 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
                               axis_lat, axis_long, rotation_period, precession_period,  # rotation state
                               semi_major_axis, eccentricity,  # orbital elements
                               facet_size, number_of_thermal_wave_depths, first_layer_depth, number_of_layers, time_step_factor,  # numerical grid parameters
-                              progress_file): # file where the estimated remaining calculation time is written periodically
+                              progress_file, 
+                              lateral_heat_conduction = 1,
+                              interpolation = 1): # file where the estimated remaining calculation time is written periodically
 
 
 
@@ -572,8 +612,18 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
     
 
     # generating the mesh
-    neighbor_cells, volumes, areas, distances, surface_cells, surface_areas, surface_normals = prismatic_mesh(semi_axis_a, semi_axis_b, semi_axis_c, facet_size, layer_depths)
+    neighbor_cells, volumes, areas, distances, surface_cells, surface_areas, surface_normals = prismatic_mesh(semi_axis_a, semi_axis_b, semi_axis_c, facet_size, layer_depths, lateral_heat_conduction)
 
+
+    # coorcinates of the surface cells
+    lat_surface = np.rad2deg(np.arcsin(np.transpose(surface_normals)[2]))# latitude
+    long_surface = np.rad2deg(np.arctan2(np.transpose(surface_normals)[1], np.transpose(surface_normals)[0])) # longitude
+
+    grid_lon, grid_lat = np.meshgrid(
+    np.linspace(-180, 180, 360),  # 1° razmak
+    np.linspace(min(lat_surface), max(lat_surface), 180)  # 0.1° razmak
+    )
+    
     # initial setting for the time step (it will usually be much smaller than this because it depands on the smallest distance between the cells)
     time_step = rotation_period / 24 
     
@@ -598,7 +648,7 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
     
     # Array to store last 2 values of the Yarkovsky drift (to check for divergence)
     drift = [0, 0]
-
+    
     # iteration counter
     i=0
     
@@ -612,7 +662,7 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
     
     total_drift = 0
     
-    drift_za_plot = []
+    drift_evolution = []
     
     while total_time <= orbital_period:
         
@@ -627,6 +677,9 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
                                                                       M0 = np.pi, # starting from aphelion 
                                                                       no_motion = 0, # not needed for isolated seasonal effect
                                                                       precession_period = precession_period) 
+        
+        
+        
    
         # temperature difference relative to neighboring cells
         delta_T = T[neighbor_cells] - T[:, None] 
@@ -674,7 +727,7 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
             total_time += time_step
             i += 1
             total_drift += dadt
-            drift_za_plot.append(dadt)
+            drift_evolution.append(dadt)
             
         if np.mod(i, 100)==0 and i > 0:
             
@@ -689,9 +742,38 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
 #            print('{}, {}, {}, {}, {}, {}'.format(facet_size, number_of_thermal_wave_depths, np.round(first_layer_depth/ls, 2), number_of_layers, time_step_factor, formatted_time))
             zapis = 'facet_size = {} m\nnumber of thermal wave depths = {}\nfirst layer depth = {} m\nnumber of layers = {}\ntime step factor = {}\nestimated calculation time remaining = {}'.format(np.round(facet_size, 3), number_of_thermal_wave_depths, np.round(first_layer_depth_abs, 3), number_of_layers, time_step_factor, formatted_time)
             np.savetxt(progress_file, [zapis], fmt='%s')
-        
+    
+    
+    long_surface_location = long_surface - np.mod(np.rad2deg(np.arctan2(r_sun[1], r_sun[0])), 360)
+    long_surface_location = ((long_surface_location + 180) % 360) - 180
+    
+    long_extended = np.concatenate([
+    long_surface_location - 360,
+    long_surface_location,
+    long_surface_location + 360
+    ])
+    
+    lat_extended = np.tile(lat_surface, 3)
+    
+    if interpolation == 1:
+        T_asteroid = np.zeros([number_of_layers, 180, 360])
+            # Making temperature field
+        for level in range(number_of_layers):
+            level_cells = surface_cells + level * len(surface_cells)
+            T_extended = np.tile(T[level_cells], 3)
+            T_asteroid[level] = griddata((long_extended, lat_extended), T_extended, (grid_lon, grid_lat), method='cubic')
+                
+    else:
+        T_asteroid = np.zeros([number_of_layers, len(surface_normals)])
+        for level in range(number_of_layers):
+            level_cells = surface_cells + level * len(surface_cells)
+            T_level = T[level_cells]
+            T_asteroid[level] = T_level
+            
+        grid_lon = long_surface
+        grid_lat = lat_surface
 
-    return total_drift/total_number_of_iterations, drift_za_plot, total_time
+    return total_drift/total_number_of_iterations, drift_evolution, layer_depths,  grid_lon, grid_lat, T_asteroid
 
 
 def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of the asteroid
@@ -700,7 +782,9 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
                              semi_major_axis, eccentricity, number_of_locations, # orbit
                              facet_size, number_of_thermal_wave_depths, first_layer_depth, number_of_layers, time_step_factor, # numerical grid parameters
                              max_tol, min_tol, mean_tol, amplitude_tol, maximum_number_of_rotations, # convergence parameters
-                             progress_file, lateral_heat_conduction = 1): 
+                             progress_file, 
+                             lateral_heat_conduction = 1,
+                             interpolation = 1): 
 
     # Depth of the diurnal thermal wave penetration
     ls = np.sqrt(k*rotation_period/rho/cp/(2*np.pi))
@@ -715,7 +799,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     layer_depths  = layers(total_depth, first_layer_depth, number_of_layers)
    
     # generating the mesh
-    neighbor_cells, volumes, areas, distances, surface_cells, surface_areas, surface_normals = prismatic_mesh(semi_axis_a, semi_axis_b, semi_axis_c, facet_size, layer_depths)
+    neighbor_cells, volumes, areas, distances, surface_cells, surface_areas, surface_normals = prismatic_mesh(semi_axis_a, semi_axis_b, semi_axis_c, facet_size, layer_depths, lateral_heat_conduction)
 
     
     # coorcinates of the surface cells
@@ -760,7 +844,10 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     # Array to store mean anomaly (the first and last element correspond to perihelion)
     M_for_location = np.linspace(0, 2 * np.pi, number_of_locations + 1)
     
-    T_asteroid = np.zeros([number_of_locations, number_of_layers, 180, 360])
+    if interpolation == 1:
+        T_asteroid = np.zeros([number_of_locations, number_of_layers, 180, 360])
+    else:
+        T_asteroid = np.zeros([number_of_locations, number_of_layers, len(surface_normals)])
     
     drift_evolution = []
 
@@ -865,7 +952,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
                 i += 1
     
             # Checking for convergence
-            if np.mod(i, number_of_steps_per_rotation ) == 0 and i >= 2*number_of_steps_per_rotation: # Full rotation completed (starting from the second rotation)
+            if np.mod(i, number_of_steps_per_rotation ) == 0 and i >= 2 * number_of_steps_per_rotation: # Full rotation completed (starting from the second rotation)
                 
                 
                 # number of full rotations
@@ -917,12 +1004,21 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
                     drift_for_location[location] = np.mean(drift_2)
 
                     break # next position in the orbit
-        
-        # Making temperature field
-        for level in range(number_of_layers):
-            level_cells = surface_cells + level * len(surface_cells)
-            T_extended = np.tile(T[level_cells], 3)
-            T_asteroid[location][level] = griddata((long_extended, lat_extended), T_extended, (grid_lon, grid_lat), method='cubic')
+        if interpolation == 1:
+            # Making temperature field
+            for level in range(number_of_layers):
+                level_cells = surface_cells + level * len(surface_cells)
+                T_extended = np.tile(T[level_cells], 3)
+                T_asteroid[location][level] = griddata((long_extended, lat_extended), T_extended, (grid_lon, grid_lat), method='cubic')
+                
+        else:
+            for level in range(number_of_layers):
+                level_cells = surface_cells + level * len(surface_cells)
+                T_level = T[level_cells]
+                T_asteroid[location][level] = T_level
+                
+            grid_lon = long_surface
+            grid_lat = lat_surface
                    
         drift_evolution.append(drift)
 
@@ -932,8 +1028,9 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     # Mean value of the Yerkovsky effect with respect to time for the entire orbit
     total_effect = np.trapz(drift_for_location, M_for_location)/(2*np.pi)
     
-
+    
     return total_effect, drift_for_location, M_for_location, layer_depths,  grid_lon, grid_lat, T_asteroid
+    
 
 
 def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of the asteroid
@@ -941,7 +1038,7 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
                              axis_lat, axis_long, rotation_period, precession_period, # rotation state
                              semi_major_axis, eccentricity, number_of_locations, # orbit
                              facet_size, number_of_thermal_wave_depths, first_layer_depth, number_of_layers, time_step_factor, # numerical grid parameters
-                             max_tol, min_tol, mean_tol, amplitude_tol, maximum_number_of_rotations): # convergence parameters
+                             max_tol, min_tol, mean_tol, amplitude_tol, maximum_number_of_rotations, lateral_heat_conduction = 1): # convergence parameters
 
     initialization = 1
     
@@ -970,7 +1067,7 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     layer_depths  = layers(total_depth, first_layer_depth, number_of_layers)
    
     # generating the mesh
-    neighbor_cells, volumes, areas, distances, surface_cells, surface_areas, surface_normals = prismatic_mesh(semi_axis_a, semi_axis_b, semi_axis_c, facet_size, layer_depths)
+    neighbor_cells, volumes, areas, distances, surface_cells, surface_areas, surface_normals = prismatic_mesh(semi_axis_a, semi_axis_b, semi_axis_c, facet_size, layer_depths, lateral_heat_conduction)
 
     # initial setting for the time step (it will usually be much smaller than this because it depands on the smallest distance between the cells)
     time_step = rotation_period / 24 

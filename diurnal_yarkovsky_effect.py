@@ -31,7 +31,7 @@ total_effect, drift_for_location, M_for_location, layer_depths, grid_ha, grid_la
     p.axis_lat, p.axis_long, p.rotation_period, p.precession_period,
     p.semi_major_axis, p.eccentricity, p.number_of_locations,
     p.facet_size, p.number_of_thermal_wave_depths, p.first_layer_depth, p.number_of_layers, p.time_step_factor,
-    p.max_tol, p.min_tol, p.mean_tol, p.amplitude_tol, p.maximum_number_of_rotations, args.prog, p.lateral_heat_conduction
+    p.max_tol, p.min_tol, p.mean_tol, p.amplitude_tol, p.maximum_number_of_rotations, args.prog, p.lateral_heat_conduction, p.interpolation
 )
 
 # -----------------------------

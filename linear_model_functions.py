@@ -316,7 +316,7 @@ def yarkovsky_vf(semiaxm, ecc, posvel, rho, K0, C, R, gam, rotPer, alpha, epsi, 
 
 
 def yarko_eccentric(semiaxm, ecc, rho, K, C, R, gam, rotPer, alpha, epsi, expo):
-    npoints = 500
+    npoints = 20
     mAst = 4.0 * np.pi * rho * R**3 / 3.0
     mu = gmsun + uGc * mAst
     meanMotion = np.sqrt(mu / (semiaxm * au2m)**3)
