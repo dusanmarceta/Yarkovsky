@@ -10,3 +10,6 @@ validation/
 *.npy
 *.npz
 *.log
+check_seasonal.py
+input_parameters_seasonal.py
+
