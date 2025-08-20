@@ -63,10 +63,10 @@ Convergence of the Yarkovsky effect calculation for a spherical asteroid is illu
 
 | Argument          |  Description                                                                       |
 |-------------------|------------------------------------------------------------------------------------|
-| `max_tol`         | ✅        | Required relative difference between the maxima of two successive rotations (max_1 and max_2)|
-| `min_tol`         | ❌        | Required relative difference between the minima of two successive rotations (min_1 and min_2)|
-| `mean_tol`        | ❌        | Required relative difference between the means of two successive rotations (mean values of the rotations marked in blue and red)|
-| `amplitude_tol`   | ❌        | Required maximum relative amplitude (total relative variation over one full rotation)|
+| `max_tol`         | Required relative difference between the maxima of two successive rotations (max_1 and max_2)|
+| `min_tol`         | Required relative difference between the minima of two successive rotations (min_1 and min_2)|
+| `mean_tol`        | Required relative difference between the means of two successive rotations (mean values of the rotations marked in blue and red)|
+| `amplitude_tol`   | Required maximum relative amplitude (total relative variation over one full rotation)|
 
 ---
 
