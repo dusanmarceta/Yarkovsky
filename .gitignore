@@ -1,4 +1,5 @@
 __pycache__/
+images/
 diurnal_test.py
 precession_test.py
 diurnal_test.sh
@@ -13,6 +14,5 @@ validation/
 *.log
 check_seasonal.py
 input_parameters_seasonal.py
-temperature_map.py
 *.dat
 

@@ -49,6 +49,11 @@ This file defines the physical, thermal, and orbital properties required for the
 You should edit this example file to set your own parameters as needed.
 While you can freely modify the parameter values, the overall structure and format of the file must be preserved to ensure correct parsing by the script.
 
+---
+
+### 📊 Convergence Criteria
+
+![Description of the image](https://github.com/user-attachments/assets/c635e055-e478-4d70-82f6-18d9541e0f4a)
 
 ---
 
