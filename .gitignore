@@ -15,4 +15,5 @@ validation/
 check_seasonal.py
 input_parameters_seasonal.py
 *.dat
+precession_test.py
 

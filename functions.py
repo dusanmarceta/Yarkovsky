@@ -97,7 +97,6 @@ def sun_motion(a, e, M0, t):
     y = a*np.sqrt(1-e**2)*np.sin(E)
     return x, y
 
-
 def sun_position(axis_lat, axis_long, period, a, e, t, M0, no_motion, precession_period):
     """
     calculates postion of the Sun in the asteroid-fixed (rotating) reference frame
@@ -117,15 +116,12 @@ def sun_position(axis_lat, axis_long, period, a, e, t, M0, no_motion, precession
         solar irradiance: total irradiance corresponding to sun_distance (W/m2)
     """
     
-    
     # instantenous coordinates of the Sun in asteroid-centred inertial reference frame (xOy is orbital plane, x-axis toward pericenter)
     if no_motion == 1: # no motion along the orbit
         x, y = sun_motion(a, e, M0, 0)
     else:
         x, y = sun_motion(a, e, M0, t)
         
-
-    
     r=np.sqrt(x**2+y**2)
     
     nn = np.array([0,0,1]) # normal to orbital plane
@@ -133,7 +129,7 @@ def sun_position(axis_lat, axis_long, period, a, e, t, M0, no_motion, precession
     [xt, yt, zt] = np.cross(nn, np.array([x/r, y/r, 0])) # unit vector toward the Sun
         
     if precession_period is not np.inf:
-        axis_long -= 2*np.pi * t / precession_period
+        axis_long = -2*np.pi * t / precession_period
     
     # 1. we rotate about z axis for angle axis_long
     R1 = np.array([[np.cos(axis_long), -np.sin(axis_long), 0],
@@ -153,7 +149,7 @@ def sun_position(axis_lat, axis_long, period, a, e, t, M0, no_motion, precession
     [x2t, y2t, z2t] = np.matmul(R2, [x1t, y1t, z1t])
     
     # 3. we rotate about z axis for rotation angle
-    rotation_angle = -(2*np.pi/period * t)
+    rotation_angle = -(2*np.pi/period * t) + 2*np.pi * t / precession_period
     R3 = np.array([[np.cos(rotation_angle), -np.sin(rotation_angle), 0],
                     [np.sin(rotation_angle), np.cos(rotation_angle), 0],
                     [0, 0, 1]]);
@@ -170,6 +166,7 @@ def sun_position(axis_lat, axis_long, period, a, e, t, M0, no_motion, precession
     solar_irradiance = 1361./rs**2 # total solar irradiance at distance rs
 
     return([x3, y3, z3], [x3t, y3t, z3t], rs, solar_irradiance)
+    
     
 
 def layers(D, x1, N):
@@ -551,7 +548,7 @@ def prismatic_mesh(a, b, c, facet_size, layers, lateral_heat_conduction = 1):
             else:
                 distances[br][4] = (thickness[i] + thickness[i+1])/2
                 
-    distances[-1] = np.array([np.inf, np.inf, np.inf, np.inf, np.inf]) # fictuous cell (# adiabatic boundary condition)
+    distances[-1] = np.array([np.inf, np.inf, np.inf, np.inf, np.inf]) # fictuous cell (adiabatic boundary condition)
         
     # =============================================================================
     # Cell volumes (works !!!)
