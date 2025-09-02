@@ -91,13 +91,14 @@ def sun_motion(a, e, M0, t):
     M = n*t + M0
     # eccentric anomaly
     E = kepler(e, M, 1e-6)
+    true_anomaly = ecc2true(E, e)
     
     # Cartesian coordinates of the Sun in asteroid-centered inertial reference frame
     x = a*(np.cos(E)-e) 
     y = a*np.sqrt(1-e**2)*np.sin(E)
-    return x, y
+    return x, y, true_anomaly
 
-def sun_position(axis_lat, axis_long, period, a, e, t, M0, no_motion, precession_period):
+def sun_position(axis_lat_initial, axis_long_initial, period, a, e, t, M0, no_motion, precession_period):
     """
     calculates postion of the Sun in the asteroid-fixed (rotating) reference frame
     
@@ -115,21 +116,21 @@ def sun_position(axis_lat, axis_long, period, a, e, t, M0, no_motion, precession
         sun_distance: distance to the Sun (au)
         solar irradiance: total irradiance corresponding to sun_distance (W/m2)
     """
-    
     # instantenous coordinates of the Sun in asteroid-centred inertial reference frame (xOy is orbital plane, x-axis toward pericenter)
     if no_motion == 1: # no motion along the orbit
-        x, y = sun_motion(a, e, M0, 0)
+        x, y, true_anomaly = sun_motion(a, e, M0, 0)
     else:
-        x, y = sun_motion(a, e, M0, t)
+        x, y, true_anomaly = sun_motion(a, e, M0, t)
         
     r=np.sqrt(x**2+y**2)
     
     nn = np.array([0,0,1]) # normal to orbital plane
     
-    [xt, yt, zt] = np.cross(nn, np.array([x/r, y/r, 0])) # unit vector toward the Sun
+    [xt, yt, zt] = np.cross(nn, np.array([x/r, y/r, 0])) # unit transfersal vector
         
-    if precession_period is not np.inf:
-        axis_long = -2*np.pi * t / precession_period
+    
+    axis_long = axis_long_initial - 2*np.pi * t/ precession_period
+    axis_lat = axis_lat_initial
     
     # 1. we rotate about z axis for angle axis_long
     R1 = np.array([[np.cos(axis_long), -np.sin(axis_long), 0],
@@ -165,7 +166,7 @@ def sun_position(axis_lat, axis_long, period, a, e, t, M0, no_motion, precession
     
     solar_irradiance = 1361./rs**2 # total solar irradiance at distance rs
 
-    return([x3, y3, z3], [x3t, y3t, z3t], rs, solar_irradiance)
+    return([x3, y3, z3], [x3t, y3t, z3t], rs, solar_irradiance, true_anomaly)
     
     
 
@@ -664,9 +665,12 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
     while total_time <= orbital_period:
         
         drift[0] = drift[1]
+        
+        
+        # treba izracunati longitudu ose rotacije zbog precesije posto ovde krece u afelu !!!!!!!!!
                 
         # position of the Sun in asteroid-fixed reference frame
-        r_sun, r_trans, sun_distance, solar_irradiance = sun_position(axis_lat = axis_lat, axis_long = axis_long, 
+        r_sun, r_trans, sun_distance, solar_irradiance, true_anomaly = sun_position(axis_lat_initial = axis_lat, axis_long_initial = axis_long, 
                                                                       period = rotation_period, 
                                                                       a = semi_major_axis, 
                                                                       e = eccentricity, 
@@ -700,8 +704,17 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
         # Transfersal thermal force (Yarkovsky force)
         B = np.dot(F, r_trans)
     
+        # Radial thermal force
+        R = np.dot(F, [np.cos(true_anomaly), np.sin(true_anomaly), 0])
+        
         # Semi-major axis drift
-        dadt = 2 * semi_major_axis / mean_motion / sun_distance * np.sqrt(1 - eccentricity**2) * B / mass
+#            dadt = 2 * semi_major_axis / mean_motion / sun_distance * np.sqrt(1 - eccentricity**2) * B / mass
+        
+        dadt = 2 * mean_motion * (semi_major_axis * au)**2 / G * (
+                R * semi_major_axis * au * eccentricity * np.sin(true_anomaly) / np.sqrt(1-eccentricity**2) + 
+                B * semi_major_axis**2 * au * np.sqrt(1-eccentricity**2) / sun_distance)/mass
+        
+        
         
         drift[1] = dadt
         
@@ -846,7 +859,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     else:
         T_asteroid = np.zeros([number_of_locations, number_of_layers, len(surface_normals)])
     
-    drift_evolution = []
+    drift_evolution = [[] for _ in range(number_of_locations)]
 
     for location in range(number_of_locations):
         
@@ -854,7 +867,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
         M = M_for_location[location]
         
         # position of the Sun in asteroid-fixed reference frame
-        r_sun, r_trans, sun_distance, solar_irradiance = sun_position(axis_lat = axis_lat, axis_long = axis_long, 
+        r_sun, r_trans, sun_distance, solar_irradiance, true_anomaly = sun_position(axis_lat_initial = axis_lat, axis_long_initial = axis_long, 
                                                                       period = rotation_period, 
                                                                       a = semi_major_axis, 
                                                                       e = eccentricity, 
@@ -897,7 +910,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
         while True:
             
             # position of the Sun in asteroid-fixed reference frame
-            r_sun, r_trans, sun_distance, solar_irradiance = sun_position(axis_lat = axis_lat, axis_long = axis_long, 
+            r_sun, r_trans, sun_distance, solar_irradiance, true_anomaly = sun_position(axis_lat_initial = axis_lat, axis_long_initial = axis_long, 
                                                                           period = rotation_period, 
                                                                           a = semi_major_axis, 
                                                                           e = eccentricity, 
@@ -929,8 +942,15 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
             # Transfersal thermal force (Yarkovsky force)
             B = np.dot(F, r_trans)
         
+            # Radial thermal force
+            R = np.dot(F, [np.cos(true_anomaly), np.sin(true_anomaly), 0])
+            
             # Semi-major axis drift
-            dadt = 2 * semi_major_axis / mean_motion / sun_distance * np.sqrt(1 - eccentricity**2) * B / mass
+#            dadt = 2 * semi_major_axis / mean_motion / sun_distance * np.sqrt(1 - eccentricity**2) * B / mass
+            
+            dadt = 2 * mean_motion * (semi_major_axis * au)**2 / G * (
+                    R * semi_major_axis * au * eccentricity * np.sin(true_anomaly) / np.sqrt(1-eccentricity**2) + 
+                    B * semi_major_axis**2 * au * np.sqrt(1-eccentricity**2) / sun_distance)/mass
             
             drift.append(dadt)
             
@@ -1017,7 +1037,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
             grid_lon = long_surface
             grid_lat = lat_surface
                    
-        drift_evolution.append(drift)
+        drift_evolution[location].append(drift)
 
     # the last vvalue also corresponds to perihelion so we do not need to calculate it again
     drift_for_location[-1] = drift_for_location[0]
@@ -1025,17 +1045,21 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     # Mean value of the Yerkovsky effect with respect to time for the entire orbit
     total_effect = np.trapz(drift_for_location, M_for_location)/(2*np.pi)
     
-    
+    with open("test/output/drift_evolution.txt", "w") as f:
+        for row in drift_evolution:
+            f.write(" ".join(map(str, row)) + "\n")
+            
+            
     return total_effect, drift_for_location, M_for_location, layer_depths,  grid_lon, grid_lat, T_asteroid
     
 
 
 def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of the asteroid
                              rho, k, albedo, cp, eps, # physical characteristics
-                             axis_lat, axis_long, rotation_period, precession_period, # rotation state
+                             axis_lat_perihelion, axis_long_perihelion, rotation_period, precession_period, # rotation state
                              semi_major_axis, eccentricity, number_of_locations, # orbit
                              facet_size, number_of_thermal_wave_depths, first_layer_depth, number_of_layers, time_step_factor, # numerical grid parameters
-                             max_tol, min_tol, mean_tol, amplitude_tol, maximum_number_of_rotations, lateral_heat_conduction = 1): # convergence parameters
+                             max_tol, min_tol, mean_tol, amplitude_tol, maximum_number_of_rotations, progress_file, lateral_heat_conduction = 1): # convergence parameters
 
     initialization = 1
     
@@ -1060,9 +1084,12 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     # depth of the first layer
     first_layer_depth = l_diurnal * first_layer_depth
     
+    # depth of the first layer
+    first_layer_depth_abs = np.min([np.min([l_diurnal, l_seasonal]), total_depth/number_of_thermal_wave_depths]) * first_layer_depth
+    
     # depths of all layers
-    layer_depths  = layers(total_depth, first_layer_depth, number_of_layers)
-   
+    layer_depths  = layers(total_depth, first_layer_depth_abs, number_of_layers)
+       
     # generating the mesh
     neighbor_cells, volumes, areas, distances, surface_cells, surface_areas, surface_normals = prismatic_mesh(semi_axis_a, semi_axis_b, semi_axis_c, facet_size, layer_depths, lateral_heat_conduction)
 
@@ -1104,6 +1131,10 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     # total time
     total_time = 0.
     
+    
+    axis_long_aphelion = axis_long_perihelion - np.pi * orbital_period/ precession_period
+    axis_lat_aphelion = axis_lat_perihelion
+    
     # iteration counter
     i=0
     
@@ -1112,7 +1143,7 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
         
         
         # position of the Sun in asteroid-fixed reference frame
-        r_sun, r_trans, sun_distance, solar_irradiance = sun_position(axis_lat = axis_lat, axis_long = axis_long, 
+        r_sun, r_trans, sun_distance, solar_irradiance, true_anomaly = sun_position(axis_lat_initial = axis_lat_aphelion, axis_long_initial = axis_long_aphelion, 
                                                                       period = rotation_period, 
                                                                       a = semi_major_axis, 
                                                                       e = eccentricity, 
@@ -1142,8 +1173,15 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
         # Transfersal thermal force (Yarkovsky force)
         B = np.dot(F, r_trans)
     
+        # Radial thermal force
+        R = np.dot(F, [np.cos(true_anomaly), np.sin(true_anomaly), 0])
+        
         # Semi-major axis drift
-        dadt = 2 * semi_major_axis / mean_motion / sun_distance * np.sqrt(1 - eccentricity**2) * B / mass
+#            dadt = 2 * semi_major_axis / mean_motion / sun_distance * np.sqrt(1 - eccentricity**2) * B / mass
+        
+        dadt = 2 * mean_motion * (semi_major_axis * au)**2 / G * (
+                R * semi_major_axis * au * eccentricity * np.sin(true_anomaly) / np.sqrt(1-eccentricity**2) + 
+                B * semi_major_axis**2 * au * np.sqrt(1-eccentricity**2) / sun_distance)/mass
         
         drift.append(dadt)
         
@@ -1223,12 +1261,23 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
     
     time_1 = time.time() # for measuring of the execution time
     total_number_of_iterations = orbital_period / time_step
+    
+    time_step = orbital_period / total_number_of_iterations # to ensure integer number of time steps along the orbit
+    
+    
     total_drift = 0
     while total_time <= orbital_period:
         
         drift[0] = drift[1]
+        
+        
+        
+        # TREBA IZRACUNATI POLOZAJ OSE ROTACIJE U AFELU
+        
+        
+        
         # position of the Sun in asteroid-fixed reference frame
-        r_sun, r_trans, sun_distance, solar_irradiance = sun_position(axis_lat = axis_lat, axis_long = axis_long, 
+        r_sun, r_trans, sun_distance, solar_irradiance, true_anomaly = sun_position(axis_lat_initial = axis_lat_aphelion, axis_long_initial = axis_long_aphelion, 
                                                                       period = rotation_period, 
                                                                       a = semi_major_axis, 
                                                                       e = eccentricity, 
@@ -1256,10 +1305,16 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
         F=2/3*eps*sigma/ speed_of_light * np.sum((T[surface_cells][:, None])**4 * surface_normals * surface_areas[:, None], axis=0)
         
         # Transfersal thermal force (Yarkovsky force)
-        B = np.dot(F, r_trans)
-    
+        # Radial thermal force
+        R = np.abs(np.dot(F, -np.array(r_sun)))
+        
+        
         # Semi-major axis drift
         dadt = 2 * semi_major_axis / mean_motion / sun_distance * np.sqrt(1 - eccentricity**2) * B / mass
+        
+#        dadt = 2 * mean_motion * (semi_major_axis * au)**2 / G * (
+#                R * semi_major_axis * au * eccentricity * np.sin(true_anomaly) / np.sqrt(1-eccentricity**2) + 
+#                B * semi_major_axis**2 * au * np.sqrt(1-eccentricity**2) / sun_distance)/mass
         
         drift[1] = dadt
         
@@ -1288,11 +1343,7 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
             hours, remainder = divmod(int(round(estimated_time)), 3600)
             minutes, seconds = divmod(remainder, 60)
             formatted_time = '{:02}:{:02}:{:02}'.format(hours, minutes, seconds)
-            print('Estimated execution time is {}'.format(formatted_time))
+            zapis = 'facet_size = {} m\nnumber of thermal wave depths = {}\nfirst layer depth = {} m\nnumber of layers = {}\ntime step factor = {}\nestimated calculation time remaining = {}'.format(np.round(facet_size, 3), number_of_thermal_wave_depths, np.round(first_layer_depth_abs, 3), number_of_layers, time_step_factor, formatted_time)
+            np.savetxt(progress_file, [zapis], fmt='%s')
 
     return total_drift/total_number_of_iterations
-
-        
-
-    
-    return drift

@@ -1,5 +1,6 @@
 __pycache__/
 images/
+test/
 diurnal_test.py
 precession_test.py
 diurnal_test.sh
@@ -14,6 +15,9 @@ validation/
 *.log
 check_seasonal.py
 input_parameters_seasonal.py
+input_parameters_precesija.py
 *.dat
 precession_test.py
+test_components.py
+pokretanje
 
