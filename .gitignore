@@ -1,6 +1,5 @@
 __pycache__/
 images/
-test/
 diurnal_test.py
 precession_test.py
 diurnal_test.sh

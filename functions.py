@@ -96,7 +96,7 @@ def sun_motion(a, e, M0, t):
     # Cartesian coordinates of the Sun in asteroid-centered inertial reference frame
     x = a*(np.cos(E)-e) 
     y = a*np.sqrt(1-e**2)*np.sin(E)
-    return x, y, true_anomaly
+    return x, y, true_anomaly, M
 
 def sun_position(axis_lat_initial, axis_long_initial, period, a, e, t, M0, no_motion, precession_period):
     """
@@ -118,18 +118,21 @@ def sun_position(axis_lat_initial, axis_long_initial, period, a, e, t, M0, no_mo
     """
     # instantenous coordinates of the Sun in asteroid-centred inertial reference frame (xOy is orbital plane, x-axis toward pericenter)
     if no_motion == 1: # no motion along the orbit
-        x, y, true_anomaly = sun_motion(a, e, M0, 0)
+        x, y, true_anomaly, M = sun_motion(a, e, M0, 0)
     else:
-        x, y, true_anomaly = sun_motion(a, e, M0, t)
+        x, y, true_anomaly, M = sun_motion(a, e, M0, t)
         
     r=np.sqrt(x**2+y**2)
     
     nn = np.array([0,0,1]) # normal to orbital plane
     
     [xt, yt, zt] = np.cross(nn, np.array([x/r, y/r, 0])) # unit transfersal vector
-        
     
-    axis_long = axis_long_initial - 2*np.pi * t/ precession_period
+    mm = np.sqrt(G/(a*au)**3)
+        
+    t_precession = M/mm # time since the perihelion
+    
+    axis_long = axis_long_initial - 2*np.pi * t_precession / precession_period
     axis_lat = axis_lat_initial
     
     # 1. we rotate about z axis for angle axis_long
