@@ -149,3 +149,17 @@ def sample_from_curve(x,y, N):
         sample[i]=np.real(t)    
     
     return sample
+
+def true2ecc(f, e):
+    # =============================================================================
+    # converts true anomaly to eccentric (or hyperbolic) anomaly
+    # Input:
+    # f [radians] - true anomaly
+    # Output:
+    # eccentric (or hyperbolic anomaly) [radians]
+    # =============================================================================
+    if e > 1:
+        return 2 * np.arctanh(np.sqrt((e - 1) / (e + 1)) * np.tan(f / 2))
+
+    else:
+        return np.arctan2(np.sqrt(1 - e ** 2) * np.sin(f), e + np.cos(f))

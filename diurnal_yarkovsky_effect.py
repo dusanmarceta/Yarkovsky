@@ -25,11 +25,11 @@ spec.loader.exec_module(params)
 # Prepare input values
 # -----------------------------
 p = params
-total_effect, drift_for_location, M_for_location, layer_depths, grid_ha, grid_lat, T_asteroid = diurnal_yarkovsky_effect(
+total_effect, drift_for_location, M_for_location, layer_depths, grid_ha, grid_lat, T_asteroid, axis_long_for_location = diurnal_yarkovsky_effect(
     p.a1, p.a2, p.a3,
     p.rho, p.k, p.albedo, p.cp, p.eps,
     p.axis_lat, p.axis_long, p.rotation_period, p.precession_period,
-    p.semi_major_axis, p.eccentricity, p.number_of_locations,
+    p.semi_major_axis, p.eccentricity, p.initial_position, p.number_of_orbits, p.number_of_locations_per_orbit,
     p.facet_size, p.number_of_thermal_wave_depths, p.first_layer_depth, p.number_of_layers, p.time_step_factor,
     p.max_tol, p.min_tol, p.mean_tol, p.amplitude_tol, p.maximum_number_of_rotations, args.prog, p.lateral_heat_conduction, p.interpolation
 )
@@ -37,13 +37,17 @@ total_effect, drift_for_location, M_for_location, layer_depths, grid_ha, grid_la
 # -----------------------------
 # Save outputs
 # -----------------------------
-
 if args.yarko:
     np.savetxt(
         args.yarko,
-        np.column_stack([M_for_location, drift_for_location]),
-        header='Mean_Anomaly(rad) Drift(m/s)',
-        comments=''
+        np.column_stack([
+            M_for_location,
+            drift_for_location,
+            np.rad2deg(axis_long_for_location)
+        ]),
+        header='Mean_Anomaly(rad), Drift(m/s), spin-axis longitude (deg)',
+        comments='',
+        fmt=['%.6f', '%.6e', '%.2f']  # 6 decimala za prvu, eksponencijalni zapis za drugu, 2 decimale za treću
     )
     
     # Dopiši total drift kao komentar na kraju

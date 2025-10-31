@@ -15,17 +15,18 @@ a3 = 7.  # semi-axis of the ellipsod along the rotation axis (m)
 #                               Rotation
 # =============================================================================
 rotation_period = 3600.  # Rotation period (seconds)
-precession_period = np.inf # Period of the precession of the spin axis (+ for direct, - for retrograde precession) (seconds)
-axis_lat = np.deg2rad(90.)  #  Latitude of the north pole relative to the orbital plane (rad)
-axis_long = np.deg2rad(0.) # Longitude of the north pole measured from the direction of perihelion (rad)
+precession_period = 20736000. # Period of the precession of the spin axis (+ for direct, - for retrograde precession) (seconds)
+axis_lat = np.deg2rad(60.)  #  Latitude of the north pole relative to the orbital plane (rad)
+axis_long = np.deg2rad(45.) # Longitude of the north pole measured from the direction of perihelion (rad)
 # =============================================================================
 #                                Orbit
 # =============================================================================
 #eccentricity = 0.52018004318  # Eccentricity of the orbit
 #semi_major_axis = 2.06282123907  # Semimajor axis of the orbit (au)
-eccentricity = 0.6  # Eccentricity of the orbit
+eccentricity = 0.7  # Eccentricity of the orbit
 semi_major_axis = 1  # Semimajor axis of the orbit (au)
-number_of_locations = 6  # Number of points along the orbit where the Yarkovsky effect is computed
+number_of_orbits = 8  # Number of orbits along which the Yarkovsky effect is calculated (if there is no complex rotation (e.g. spin-axis precession) this should be 1)
+number_of_locations_per_orbit = 10  # Number of points along each orbit where the Yarkovsky effect is computed
 
 # =============================================================================
 #                           Numerical grid

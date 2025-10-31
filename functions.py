@@ -135,7 +135,7 @@ def sun_position(axis_lat_initial, axis_long_initial, period, semi_major_axis, e
         
     t_precession = M/mm # time since the perihelion
     
-    axis_long = axis_long_initial - 2*np.pi * t_precession / precession_period
+    axis_long = np.mod(axis_long_initial - 2*np.pi * t_precession / precession_period, 2*np.pi)
     axis_lat = axis_lat_initial
     
     # 1. we rotate about z axis for angle axis_long
@@ -795,7 +795,7 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
 def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of the asteroid
                              rho, k, albedo, cp, eps, # physical characteristics
                              axis_lat, axis_long, rotation_period, precession_period, # rotation state
-                             semi_major_axis, eccentricity, number_of_locations, # orbit
+                             semi_major_axis, eccentricity, initial_position, number_of_orbits, number_of_locations_per_orbit, # orbit
                              facet_size, number_of_thermal_wave_depths, first_layer_depth, number_of_layers, time_step_factor, # numerical grid parameters
                              max_tol, min_tol, mean_tol, amplitude_tol, maximum_number_of_rotations, # convergence parameters
                              progress_file, 
@@ -855,19 +855,20 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
         sphere = 1
     
     # Array to store Yarkovsky drift values at all orbital positions (the first and last element correspond to perihelion, so we calculate only one)
-    drift_for_location = np.zeros(number_of_locations + 1) 
+    drift_for_location = np.zeros(number_of_locations_per_orbit * number_of_orbits + 1) 
     
     # Array to store mean anomaly (the first and last element correspond to perihelion)
-    M_for_location = np.linspace(0, 2 * np.pi, number_of_locations + 1)
+    M_for_location = 2*np.pi * initial_position + np.linspace(0, 2 * np.pi * number_of_orbits, number_of_locations_per_orbit * number_of_orbits + 1)
     
     if interpolation == 1:
-        T_asteroid = np.zeros([number_of_locations, number_of_layers, 180, 360])
+        T_asteroid = np.zeros([int(number_of_locations_per_orbit * number_of_orbits + 1), number_of_layers, 180, 360])
     else:
-        T_asteroid = np.zeros([number_of_locations, number_of_layers, len(surface_normals)])
+        T_asteroid = np.zeros([int(number_of_locations_per_orbit * number_of_orbits + 1), number_of_layers, len(surface_normals)])
     
-    drift_evolution = [[] for _ in range(number_of_locations)]
+    drift_evolution = [[] for _ in range(number_of_locations_per_orbit * number_of_orbits + 1)]
 
-    for location in range(number_of_locations):
+    axis_long_for_location = []
+    for location in range(number_of_locations_per_orbit * number_of_orbits + 1):
         
         # Mean anomaly at the current position in the orbit
         M = M_for_location[location]
@@ -882,6 +883,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
                                                                       no_motion = 1, # not needed for isolated seasonal effect
                                                                       precession_period = precession_period)
         
+        axis_long_for_location.append(axis_long_prec)
 
         long_surface_location = long_surface - np.mod(np.rad2deg(np.arctan2(r_sun[1], r_sun[0])), 360)
         long_surface_location = ((long_surface_location + 180) % 360) - 180
@@ -916,7 +918,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
         while True:
             
             # position of the Sun in asteroid-fixed reference frame
-            r_sun, r_trans, sun_distance, solar_irradiance, true_anomaly, axis_long_prec = sun_position(axis_lat_initial = axis_lat, axis_long_initial = axis_long, 
+            r_sun, r_trans, sun_distance, solar_irradiance, true_anomaly, _ = sun_position(axis_lat_initial = axis_lat, axis_long_initial = axis_long, 
                                                                           period = rotation_period, 
                                                                           semi_major_axis = semi_major_axis, 
                                                                           e = eccentricity, 
@@ -982,12 +984,20 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
                 number_of_rotations = i / number_of_steps_per_rotation 
                 
                 
-                zapis = 'location = {} out of {}\nrotation = {} out of {}\nfacet_size = {} m\nnumber of thermal wave depths = {}\nfirst layer depth = {} m\nnumber of layers = {}\ntime step factor = {}\nlongitude of the axis = {}'.format(location + 1, number_of_locations, 
-                                    int(number_of_rotations), maximum_number_of_rotations,
-                                    np.round(facet_size, 6), number_of_thermal_wave_depths, 
-                                    np.round(first_layer_depth, 3), number_of_layers, time_step_factor, np.rad2deg(axis_long_prec))
+                progress_output = (
+                            f"location: {location + 1} out of {number_of_locations_per_orbit * number_of_orbits + 1}\n"
+                            f"rotation: {int(number_of_rotations)} out of {maximum_number_of_rotations}\n"
+                            f"number of orbits: {number_of_orbits}\n"
+                            f"number of locations per orbit: {number_of_locations_per_orbit}\n"
+                            f"facet_size: {np.round(facet_size, 6)} m\n"
+                            f"number of thermal wave depths: {number_of_thermal_wave_depths}\n"
+                            f"first layer depth: {np.round(first_layer_depth, 3)} m\n"
+                            f"number of layers: {number_of_layers}\n"
+                            f"time step factor: {time_step_factor}\n"
+                            f"longitude of the axis: {np.round(np.rad2deg(axis_long_prec), 2)}"
+                        )
                 
-                np.savetxt(progress_file, [zapis], fmt='%s')
+                np.savetxt(progress_file, [progress_output], fmt='%s')
         
                 
                 drift_1 = drift[-int(2*number_of_steps_per_rotation):-int(number_of_steps_per_rotation)] # Drift values from the rotation preceding the last one
@@ -1046,17 +1056,21 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
         drift_evolution[location].append(drift)
 
     # the last vvalue also corresponds to perihelion so we do not need to calculate it again
-    drift_for_location[-1] = drift_for_location[0]
-        
+#    drift_for_location[-1] = drift_for_location[0]
+    
+    if len(M_for_location)>1:   
     # Mean value of the Yerkovsky effect with respect to time for the entire orbit
-    total_effect = np.trapz(drift_for_location, M_for_location)/(2*np.pi)
+        total_effect = np.trapz(drift_for_location, M_for_location)/(2*np.pi * number_of_orbits)
+        
+    else:
+        total_effect = drift_for_location[0]
     
 #    with open("test/output/drift_evolution.txt", "w") as f:
 #        for row in drift_evolution:
 #            f.write(" ".join(map(str, row)) + "\n")
             
             
-    return total_effect, drift_for_location, M_for_location, layer_depths,  grid_lon, grid_lat, T_asteroid
+    return total_effect, drift_for_location, M_for_location, layer_depths,  grid_lon, grid_lat, T_asteroid, axis_long_for_location
     
 
 
