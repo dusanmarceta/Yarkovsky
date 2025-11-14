@@ -34,21 +34,30 @@ total_effect = general_yarkovsky_effect(
     p.max_tol, p.min_tol, p.mean_tol, p.amplitude_tol, p.maximum_number_of_rotations, args.prog, p.lateral_heat_conduction
 )
 
+print(total_effect)
 # -----------------------------
 # Save outputs
 # -----------------------------
 
 if args.yarko:
+#    np.savetxt(
+#        args.yarko,
+#        np.column_stack([total_effect]),
+#        header='Mean_Anomaly(rad) Drift(m/s)',
+#        comments=''
+#    )
+#    
+#    # Dopiši total drift kao komentar na kraju
+#    with open(args.yarko, 'a') as f:
+#        f.write(f'\n# Total Yarkovsky drift (m/s): {total_effect:.8e}\n')
+                
     np.savetxt(
         args.yarko,
         np.column_stack([total_effect]),
         header='Mean_Anomaly(rad) Drift(m/s)',
         comments=''
     )
-    
-    # Dopiši total drift kao komentar na kraju
-    with open(args.yarko, 'a') as f:
-        f.write(f'\n# Total Yarkovsky drift (m/s): {total_effect:.8e}\n')
+
 
 #if args.grid:
 #    np.savez(
