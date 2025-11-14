@@ -29,7 +29,7 @@ total_effect = general_yarkovsky_effect(
     p.a1, p.a2, p.a3,
     p.rho, p.k, p.albedo, p.cp, p.eps,
     p.axis_lat, p.axis_long, p.rotation_period, p.precession_period,
-    p.semi_major_axis, p.eccentricity, p.number_of_locations,
+    p.semi_major_axis, p.eccentricity,
     p.facet_size, p.number_of_thermal_wave_depths, p.first_layer_depth, p.number_of_layers, p.time_step_factor,
     p.max_tol, p.min_tol, p.mean_tol, p.amplitude_tol, p.maximum_number_of_rotations, args.prog, p.lateral_heat_conduction
 )

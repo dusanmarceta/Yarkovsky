@@ -25,7 +25,8 @@ axis_long = np.deg2rad(45.) # Longitude of the north pole measured from the dire
 #semi_major_axis = 2.06282123907  # Semimajor axis of the orbit (au)
 eccentricity = 0.7  # Eccentricity of the orbit
 semi_major_axis = 1  # Semimajor axis of the orbit (au)
-number_of_orbits = 8  # Number of orbits along which the Yarkovsky effect is calculated (if there is no complex rotation (e.g. spin-axis precession) this should be 1)
+initial_position = 0.0
+number_of_orbits = 1  # Number of orbits along which the Yarkovsky effect is calculated (if there is no complex rotation (e.g. spin-axis precession) this should be 1)
 number_of_locations_per_orbit = 10  # Number of points along each orbit where the Yarkovsky effect is computed
 
 # =============================================================================

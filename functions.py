@@ -1,13 +1,12 @@
 import pygmsh
 import numpy as np
 from collections import defaultdict
-#from constants import G, au, speed_of_light, sigma, S0
 from astropy.constants import GM_sun, au, L_sun, sigma_sb
 from astropy.constants import c as speed_of_light
 from scipy.optimize import fsolve
 from scipy.interpolate import griddata
 import time
-from datetime import timedelta
+
 
 S0 = L_sun.value / (4 * np.pi * au.value**2)
 
@@ -676,7 +675,7 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
         # treba izracunati longitudu ose rotacije zbog precesije posto ovde krece u afelu !!!!!!!!!
                 
         # position of the Sun in asteroid-fixed reference frame
-        r_sun, r_trans, sun_distance, solar_irradiance, true_anomaly = sun_position(axis_lat_initial = axis_lat, axis_long_initial = axis_long, 
+        r_sun, r_trans, sun_distance, solar_irradiance, true_anomaly, _ = sun_position(axis_lat_initial = axis_lat, axis_long_initial = axis_long, 
                                                                       period = rotation_period, 
                                                                       semi_major_axis = semi_major_axis, 
                                                                       e = eccentricity, 
@@ -790,7 +789,6 @@ def seasonal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c,  # shape of
         grid_lat = lat_surface
 
     return total_drift/total_number_of_iterations, drift_evolution, layer_depths,  grid_lon, grid_lat, T_asteroid
-
 
 def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of the asteroid
                              rho, k, albedo, cp, eps, # physical characteristics
@@ -1077,7 +1075,7 @@ def diurnal_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
 def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of the asteroid
                              rho, k, albedo, cp, eps, # physical characteristics
                              axis_lat_perihelion, axis_long_perihelion, rotation_period, precession_period, # rotation state
-                             semi_major_axis, eccentricity, number_of_locations, # orbit
+                             semi_major_axis, eccentricity, # orbit
                              facet_size, number_of_thermal_wave_depths, first_layer_depth, number_of_layers, time_step_factor, # numerical grid parameters
                              max_tol, min_tol, mean_tol, amplitude_tol, maximum_number_of_rotations, progress_file, lateral_heat_conduction = 1): # convergence parameters
 
@@ -1163,7 +1161,7 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
         
         
         # position of the Sun in asteroid-fixed reference frame
-        r_sun, r_trans, sun_distance, solar_irradiance, true_anomaly = sun_position(axis_lat_initial = axis_lat_aphelion, axis_long_initial = axis_long_aphelion, 
+        r_sun, r_trans, sun_distance, solar_irradiance, true_anomaly, _ = sun_position(axis_lat_initial = axis_lat_aphelion, axis_long_initial = axis_long_aphelion, 
                                                                       period = rotation_period, 
                                                                       semi_major_axis = semi_major_axis, 
                                                                       e = eccentricity, 
@@ -1297,7 +1295,7 @@ def general_yarkovsky_effect(semi_axis_a, semi_axis_b, semi_axis_c, # shape of t
         
         
         # position of the Sun in asteroid-fixed reference frame
-        r_sun, r_trans, sun_distance, solar_irradiance, true_anomaly = sun_position(axis_lat_initial = axis_lat_aphelion, axis_long_initial = axis_long_aphelion, 
+        r_sun, r_trans, sun_distance, solar_irradiance, true_anomaly, _ = sun_position(axis_lat_initial = axis_lat_aphelion, axis_long_initial = axis_long_aphelion, 
                                                                       period = rotation_period, 
                                                                       semi_major_axis = semi_major_axis, 
                                                                       e = eccentricity, 

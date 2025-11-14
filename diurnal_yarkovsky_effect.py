@@ -1,7 +1,9 @@
 import argparse
 import numpy as np
 import importlib.util
-from functions import diurnal_yarkovsky_effect
+#from functions import diurnal_yarkovsky_effect
+from functions_numba import diurnal_yarkovsky_effect
+import time
 
 # -----------------------------
 # Argument parser setup
@@ -24,6 +26,7 @@ spec.loader.exec_module(params)
 # -----------------------------
 # Prepare input values
 # -----------------------------
+start = time.time()
 p = params
 total_effect, drift_for_location, M_for_location, layer_depths, grid_ha, grid_lat, T_asteroid, axis_long_for_location = diurnal_yarkovsky_effect(
     p.a1, p.a2, p.a3,
@@ -33,6 +36,8 @@ total_effect, drift_for_location, M_for_location, layer_depths, grid_ha, grid_la
     p.facet_size, p.number_of_thermal_wave_depths, p.first_layer_depth, p.number_of_layers, p.time_step_factor,
     p.max_tol, p.min_tol, p.mean_tol, p.amplitude_tol, p.maximum_number_of_rotations, args.prog, p.lateral_heat_conduction, p.interpolation
 )
+
+print(time.time() - start)
 
 # -----------------------------
 # Save outputs

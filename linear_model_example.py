@@ -8,21 +8,21 @@ from constants import au, y2s
 
 
 
-rho = 2000 # bulk density (kg/m^3)
-k = 10 # coefficient of thermal conductivity (W/(m*K))
-epsi = 0.95 # emissivity of the surface
-cp = 800. # Heat capacity at constant pressure (J/kg K)
-albedo = 0.1  # Bond albedo
+rho = 2700 # bulk density (kg/m^3)
+k = 0.04839506172839506 # coefficient of thermal conductivity (W/(m*K))
+epsi = 1 # emissivity of the surface
+cp = 600. # Heat capacity at constant pressure (J/kg K)
+albedo = 0.0  # Bond albedo
 #semi_major_axis = 2.06282123907 # au
 #eccentricity = 0.52018004318
 
-semi_major_axis = 1 # au
-eccentricity = 0.0
+semi_major_axis = 1.64 # au
+eccentricity = 0.38
 
 
-R = 50 # asteroid radius (m)
-rotation_period = 24 * 3600 # seconds
-gamma = 90
+R = 390 # asteroid radius (m)
+rotation_period = 2.26*3600 # seconds
+gamma = 168
 
 
 drift_diurnal = yarko_diurnal_circular(rho, k, cp, R, semi_major_axis, gamma, rotation_period/ 3600, 1-albedo, epsi)

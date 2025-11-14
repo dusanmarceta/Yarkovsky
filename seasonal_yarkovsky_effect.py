@@ -1,11 +1,8 @@
 import numpy as np
 from functions import seasonal_yarkovsky_effect
-import matplotlib.pyplot as plt
-
 import argparse
-import numpy as np
 import importlib.util
-from functions import diurnal_yarkovsky_effect
+
 
 # -----------------------------
 # Argument parser setup

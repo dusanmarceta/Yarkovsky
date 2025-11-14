@@ -21,4 +21,5 @@ test_components.py
 pokretanje
 Precession/
 test/
+functions_numba.py
 
