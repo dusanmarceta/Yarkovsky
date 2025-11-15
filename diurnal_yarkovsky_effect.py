@@ -1,8 +1,8 @@
 import argparse
 import numpy as np
 import importlib.util
-#from functions import diurnal_yarkovsky_effect
-from functions_numba import diurnal_yarkovsky_effect
+from functions import diurnal_yarkovsky_effect
+#from functions_numba import diurnal_yarkovsky_effect
 import time
 
 # -----------------------------
